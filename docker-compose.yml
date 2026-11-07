@@ -1,0 +1,21 @@
+services:
+  gateway:
+    build: .
+    image: th2api:latest
+    container_name: th2api
+    restart: unless-stopped
+    environment:
+      # Set a fixed token so restarts do not invalidate panel sessions.
+      # TH2API_ADMIN_TOKEN: change-me
+      TH2API_HOST: 0.0.0.0
+      TH2API_PORT: "8787"
+    ports:
+      # Keep it on the loopback interface; put a reverse proxy in front.
+      - "127.0.0.1:8787:8787"
+    volumes:
+      - ./var:/app/var
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8787/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

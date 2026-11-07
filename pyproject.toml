@@ -1,7 +1,7 @@
 [project]
 name = "th2api"
-version = "0.1.0"
-description = "2API gateway for https://tokenharbor.ai"
+version = "0.2.0"
+description = "2API gateway and account panel for https://tokenharbor.ai"
 readme = "README.md"
 authors = [
     { name = "MoYeRanQianZhi", email = "MoYeRanQianZhi@gmail.com" }
@@ -9,11 +9,20 @@ authors = [
 requires-python = ">=3.12"
 dependencies = [
     "curl-cffi>=0.17.0",
+    "fastapi>=0.115",
+    "httpx>=0.27",
+    "uvicorn>=0.30",
 ]
 
 [project.scripts]
 th2api-register = "th2api.registration.cli:main"
 th2api-qualify = "th2api.qualification.cli:main"
+th2api-serve = "th2api.gateway.server:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+]
 
 [build-system]
 requires = ["uv_build>=0.13.7,<0.14.0"]

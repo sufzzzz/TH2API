@@ -1,10 +1,19 @@
 # TH2API
 
-2API gateway for [tokenharbor.ai](https://tokenharbor.ai).
+2API gateway for [tokenharbor.ai](https://tokenharbor.ai) — an
+OpenAI-compatible endpoint in front of a pool of Token Harbor accounts, plus a
+web panel to run and watch that pool.
 
-The gateway itself is not built yet. What exists today is the account
-registration pipeline it will need: create a disposable inbox, sign up,
-confirm the email, and mint a working `thk_live_…` API key.
+Two halves ship in one process:
+
+* **Gateway** (`/v1/*`) — accepts `sk-th2api-…` client keys, picks a healthy
+  account, streams the answer straight through, fails over on dead keys and
+  rate limits, and records usage per request.
+* **Panel** (`/`) — account table with free-tier gauges, gateway key management,
+  live request log, a registration runner, and an on-demand model test.
+
+The account registration pipeline (`th2api-register`) is what fills the pool;
+the gateway is what spends it.
 
 ## Requirements
 
@@ -16,6 +25,53 @@ confirm the email, and mint a working `thk_live_…` API key.
 ```bash
 uv sync
 ```
+
+## Run the gateway and panel
+
+```bash
+uv run th2api-serve
+```
+
+It prints the admin token (also written to `var/admin_token`, `0600`) and
+listens on `http://127.0.0.1:8787`. Open that URL, paste the token, and the
+panel loads.
+
+Environment variables:
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `TH2API_HOME` | current directory | where `var/` lives (accounts, database, token) |
+| `TH2API_HOST` | `127.0.0.1` | bind address; use `0.0.0.0` behind a reverse proxy |
+| `TH2API_PORT` | `8787` | listen port |
+| `TH2API_ADMIN_TOKEN` | generated | panel token; also accepted as a gateway key |
+| `TH2API_UPSTREAM` | `https://tokenharbor.ai` | upstream base URL |
+| `TH2API_ACCOUNTS` | `var/accounts.jsonl` | credential file |
+| `TH2API_DB` | `var/th2api.db` | state database |
+
+### Point a client at it
+
+Create a key in the panel (密钥 tab), then:
+
+```bash
+export OPENAI_BASE_URL=http://127.0.0.1:8787/v1
+export OPENAI_API_KEY=sk-th2api-…
+```
+
+```python
+from openai import OpenAI
+
+client = OpenAI(base_url="http://127.0.0.1:8787/v1", api_key="sk-th2api-…")
+stream = client.chat.completions.create(
+    model="deepseek-v4.1-flash:free",
+    messages=[{"role": "user", "content": "hi"}],
+    stream=True,
+)
+for chunk in stream:
+    print(chunk.choices[0].delta.content or "", end="")
+```
+
+Routing rules, failure handling and the panel's API are documented in
+[docs/gateway.md](docs/gateway.md).
 
 ## Register an account
 

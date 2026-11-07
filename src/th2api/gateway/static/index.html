@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TH2API · Gateway</title>
+<link rel="stylesheet" href="/assets/style.css" />
+</head>
+<body>
+<div id="login" class="login">
+  <form class="login-card" id="login-form">
+    <div class="brand-mark">TH<span>2</span>API</div>
+    <p class="muted">Token Harbor 网关面板 · 输入 admin token 解锁</p>
+    <input id="token-input" type="password" placeholder="admin token（启动时打印）" autocomplete="current-password" />
+    <button class="primary" type="submit">进入面板</button>
+    <p class="error" id="login-error"></p>
+  </form>
+</div>
+
+<div id="app" class="shell hidden">
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-mark">TH<span>2</span>API</span><em>gateway</em></div>
+    <nav>
+      <button class="nav-item active" data-view="overview">概览</button>
+      <button class="nav-item" data-view="accounts">账号池</button>
+      <button class="nav-item" data-view="keys">网关密钥</button>
+      <button class="nav-item" data-view="logs">请求日志</button>
+      <button class="nav-item" data-view="register">批量注册</button>
+      <button class="nav-item" data-view="test">在线测试</button>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="pill" id="health-pill">连接中…</div>
+      <button class="link" id="logout">退出</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <h1 id="view-title">概览</h1>
+      <div class="topbar-actions">
+        <span class="muted small" id="refreshed-at"></span>
+        <button class="ghost" id="refresh-view">刷新</button>
+      </div>
+    </header>
+
+    <section class="view" id="view-overview">
+      <div class="cards" id="stat-cards"></div>
+      <div class="card">
+        <div class="card-head"><h2>账号健康</h2><span class="muted small">按最近错误与冷却排序</span></div>
+        <div class="table-wrap"><table id="health-table"></table></div>
+      </div>
+    </section>
+
+    <section class="view hidden" id="view-accounts">
+      <div class="toolbar">
+        <button class="primary" id="refresh-quota">刷新全部免费额度</button>
+        <span class="muted small" id="accounts-hint"></span>
+      </div>
+      <div class="card">
+        <div class="table-wrap"><table id="accounts-table"></table></div>
+      </div>
+    </section>
+
+    <section class="view hidden" id="view-keys">
+      <div class="card create-key">
+        <h2>新建网关密钥</h2>
+        <p class="muted small">客户端用它访问 <code id="base-url">/v1</code>，格式 <code>sk-th2api-…</code>。明文只在创建时显示一次。</p>
+        <form id="key-form" class="inline-form">
+          <input id="key-name" placeholder="用途，例如 cherry-studio" />
+          <button class="primary" type="submit">生成</button>
+        </form>
+        <div class="secret-box hidden" id="new-key"></div>
+      </div>
+      <div class="card">
+        <div class="table-wrap"><table id="keys-table"></table></div>
+      </div>
+    </section>
+
+    <section class="view hidden" id="view-logs">
+      <div class="card">
+        <div class="card-head">
+          <h2>最近请求</h2>
+          <label class="muted small"><input type="checkbox" id="logs-live" checked /> 每 5 秒自动刷新</label>
+        </div>
+        <div class="table-wrap"><table id="logs-table"></table></div>
+      </div>
+    </section>
+
+    <section class="view hidden" id="view-register">
+      <div class="card">
+        <h2>批量注册</h2>
+        <p class="muted small">每个账号需要一条新的临时邮箱和一次邮箱验证；同一出口 IP 连续注册会被 <code>account_cap</code> 或 Turnstile 拦下，多号请配代理。</p>
+        <form id="register-form" class="grid-form">
+          <label>数量<input id="reg-count" type="number" min="1" max="50" value="1" /></label>
+          <label>密钥标签<input id="reg-label" placeholder="th2api" /></label>
+          <label>邮箱来源
+            <select id="reg-provider">
+              <option value="duckmail">DuckMail 临时邮箱</option>
+              <option value="domain-forward">自有域名转发</option>
+            </select>
+          </label>
+          <label>代理<input id="reg-proxy" placeholder="socks5h://user:pass@host:3000" /></label>
+          <label class="df-field hidden">域名<input id="reg-domain" placeholder="example.com" /></label>
+          <label class="df-field hidden">转发信箱<input id="reg-forward" placeholder="inbox@nicepick.shop" /></label>
+          <label class="df-field hidden">DuckMail 凭据<input id="reg-pin" type="password" placeholder="密码或 access token" /></label>
+          <div class="form-actions"><button class="primary" type="submit">开始注册</button></div>
+        </form>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>任务输出</h2><span class="pill" id="job-pill">空闲</span></div>
+        <pre class="console" id="job-console">尚未运行。</pre>
+      </div>
+    </section>
+
+    <section class="view hidden" id="view-test">
+      <div class="card">
+        <h2>在线测试</h2>
+        <p class="muted small">从池子里挑一个可用账号真实调用一次，用于验证链路和模型真伪。</p>
+        <form id="test-form" class="grid-form">
+          <label>模型<input id="test-model" list="model-list" value="deepseek-v4.1-flash:free" /><datalist id="model-list"></datalist></label>
+          <label class="wide">提示词<textarea id="test-prompt" rows="3">用一句话介绍你自己。</textarea></label>
+          <div class="form-actions"><button class="primary" type="submit">发送</button></div>
+        </form>
+        <div class="test-result hidden" id="test-result"></div>
+      </div>
+    </section>
+  </main>
+</div>
+<script src="/assets/app.js"></script>
+</body>
+</html>
